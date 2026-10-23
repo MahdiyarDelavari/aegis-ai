@@ -110,7 +110,21 @@ def main():
 
     top_protocols = df["proto"].value_counts().head(10)
 
-    print(top_protocols)
+    print(top_protocols) 
+
+
+    print_section(9, "NUMERICAL FEATURE ANALYSIS")
+
+    numerical_features = ["dur", "sbytes", "dbytes"]
+
+    median_by_label = (
+        df.groupby("label")[numerical_features]
+        .median()
+        .rename(index={0: "Normal", 1: "Attack"})
+        .round(2)
+    )
+
+    print(median_by_label)
 
 
 if __name__ == "__main__":
