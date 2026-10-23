@@ -1,5 +1,7 @@
 from pathlib import Path
 import pandas as pd
+import numpy as np
+
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -10,6 +12,13 @@ INPUT_PATH = (
 OUTPUT_DIR = ROOT / "data" / "processed"
 REPORT_DIR = ROOT / "reports"
 
+CORE_NUMERIC_COLUMNS = [
+    "dur",
+    "sbytes",
+    "dbytes",
+    "spkts",
+    "dpkts",
+]
 
 REQUIRED_COLUMNS = {
     "id",
@@ -68,6 +77,32 @@ def clean_labels(df):
     return clean, rejected
 
 
+def clean_core_numeric(df):
+    result = df.copy()
+
+    for column in CORE_NUMERIC_COLUMNS:
+        result[column] = pd.to_numeric(
+            result[column],
+            errors="coerce"
+        )
+
+    numeric_data = result[CORE_NUMERIC_COLUMNS]
+
+    invalid_mask = (
+        numeric_data.isna().any(axis=1)
+        | (numeric_data < 0).any(axis=1)
+        | ~np.isfinite(
+            numeric_data.to_numpy(dtype=float)
+        ).all(axis=1)
+    )
+
+    clean = result.loc[~invalid_mask].copy()
+    rejected = result.loc[invalid_mask].copy()
+
+    rejected["reject_reason"] = "invalid_core_numeric"
+
+    return clean, rejected
+
 def main():
     df = load_source()
 
@@ -81,6 +116,13 @@ def main():
 
     print("Valid labels:", len(clean_df))
     print("Rejected labels:", len(rejected_labels))
+
+    clean_df, rejected_numeric = clean_core_numeric(
+        clean_df
+    )
+
+    print("Rows after numeric validation:", len(clean_df))
+    print("Invalid numeric rows:", len(rejected_numeric))
 
 
 if __name__ == "__main__":
