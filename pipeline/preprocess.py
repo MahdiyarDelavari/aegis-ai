@@ -50,6 +50,24 @@ def load_source():
     return pd.read_csv(INPUT_PATH)
 
 
+def clean_labels(df):
+    labels = pd.to_numeric(
+        df["label"],
+        errors="coerce"
+    )
+
+    valid_mask = labels.isin([0, 1])
+
+    clean = df.loc[valid_mask].copy()
+    rejected = df.loc[~valid_mask].copy()
+
+    clean["label"] = labels.loc[valid_mask].astype("int8")
+
+    rejected["reject_reason"] = "invalid_label"
+
+    return clean, rejected
+
+
 def main():
     df = load_source()
 
@@ -58,6 +76,11 @@ def main():
 
     print("AEGIS AI - Data Preprocessing")
     print(f"Loaded rows: {len(df):,}")
+
+    clean_df, rejected_labels = clean_labels(df)
+
+    print("Valid labels:", len(clean_df))
+    print("Rejected labels:", len(rejected_labels))
 
 
 if __name__ == "__main__":
