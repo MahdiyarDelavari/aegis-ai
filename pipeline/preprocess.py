@@ -1,7 +1,7 @@
 from pathlib import Path
 import pandas as pd
 import numpy as np
-
+import json
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -115,31 +115,99 @@ def build_ml_view(df):
 
     return X, y
 
-def main():
-    df = load_source()
 
-    validate_schema(df)
-    print("Schema validation passed!")
+def save_outputs(raw, clean, rejected, feature_columns):
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    REPORT_DIR.mkdir(parents=True, exist_ok=True)
 
-    print("AEGIS AI - Data Preprocessing")
-    print(f"Loaded rows: {len(df):,}")
-
-    clean_df, rejected_labels = clean_labels(df)
-
-    print("Valid labels:", len(clean_df))
-    print("Rejected labels:", len(rejected_labels))
-
-    clean_df, rejected_numeric = clean_core_numeric(
-        clean_df
+    clean.to_csv(
+        OUTPUT_DIR / "training_clean.csv",
+        index=False
     )
 
-    print("Rows after numeric validation:", len(clean_df))
-    print("Invalid numeric rows:", len(rejected_numeric))
+    rejected.to_csv(
+        OUTPUT_DIR / "rejected_rows.csv",
+        index=False
+    )
 
+    report = {
+        "source_rows": int(len(raw)),
+        "clean_rows": int(len(clean)),
+        "rejected_rows": int(len(rejected)),
+        "rejection_reasons": {
+            str(k): int(v)
+            for k, v in rejected["reject_reason"]
+                .value_counts().items()
+        },
+        "missing_cells_in_clean_data": int(
+            clean.isna().sum().sum()
+        ),
+        "label_distribution": {
+            str(k): int(v)
+            for k, v in clean["label"].value_counts().items()
+        },
+        "feature_columns": list(feature_columns),
+    }
+
+    report_path = REPORT_DIR / "preprocessing_summary.json"
+
+    report_path.write_text(
+        json.dumps(report, indent=2, ensure_ascii=False),
+        encoding="utf-8"
+    )
+
+    return report_path
+
+def main():
+    print("=" * 70)
+    print("AEGIS AI - DATA PREPROCESSING")
+    print("=" * 70)
+
+    # 1. Load
+    raw_df = load_source()
+    print("Source rows:", len(raw_df))
+
+    # 2. Schema validation
+    validate_schema(raw_df)
+    print("Schema validation passed")
+
+    # 3. Label validation
+    labeled_df, rejected_labels = clean_labels(raw_df)
+
+    # 4. Numeric validation
+    clean_df, rejected_numeric = clean_core_numeric(
+        labeled_df
+    )
+
+    # 5. Combine rejected rows
+    rejected_df = pd.concat(
+        [rejected_labels, rejected_numeric],
+        ignore_index=True
+    )
+
+    # 6. Build ML feature view
     X, y = build_ml_view(clean_df)
 
-    print("Feature Matrix:", X.shape)
-    print("Target Vector:", y.shape)
+    # 7. Ensure no records were lost
+    assert len(clean_df) + len(rejected_df) == len(raw_df)
+
+    # 8. Save results
+    report_path = save_outputs(
+        raw_df,
+        clean_df,
+        rejected_df,
+        X.columns
+    )
+
+    print("=" * 70)
+    print("PREPROCESSING COMPLETED")
+    print("=" * 70)
+
+    print("Clean rows:", len(clean_df))
+    print("Rejected rows:", len(rejected_df))
+    print("Feature shape:", X.shape)
+    print("Target shape:", y.shape)
+    print("Report:", report_path)
 
 
 if __name__ == "__main__":
