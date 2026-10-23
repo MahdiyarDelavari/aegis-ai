@@ -103,6 +103,18 @@ def clean_core_numeric(df):
 
     return clean, rejected
 
+def build_ml_view(df):
+    excluded_columns = [
+        "id",
+        "label",
+        "attack_cat",
+    ]
+
+    X = df.drop(columns=excluded_columns)
+    y = df["label"].copy()
+
+    return X, y
+
 def main():
     df = load_source()
 
@@ -123,6 +135,11 @@ def main():
 
     print("Rows after numeric validation:", len(clean_df))
     print("Invalid numeric rows:", len(rejected_numeric))
+
+    X, y = build_ml_view(clean_df)
+
+    print("Feature Matrix:", X.shape)
+    print("Target Vector:", y.shape)
 
 
 if __name__ == "__main__":
