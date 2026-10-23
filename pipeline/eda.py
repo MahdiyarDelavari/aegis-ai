@@ -1,5 +1,9 @@
 from pathlib import Path
 import pandas as pd
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -61,6 +65,33 @@ def print_section(number, title):
     print(f"SECTION {number}: {title}")
     print("=" * 80)
 
+
+def save_charts(class_counts, attack_counts):
+    CHART_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Chart 1
+    fig, ax = plt.subplots(figsize=(7, 4))
+
+    ax.bar(class_counts.index, class_counts.values)
+    ax.set_title("Network Traffic Classes")
+    ax.set_ylabel("Number of Flows")
+
+    fig.tight_layout()
+    fig.savefig(CHART_DIR / "class_distribution.png", dpi=150)
+    plt.close(fig)
+
+    # Chart 2
+    sorted_attacks = attack_counts.sort_values()
+
+    fig, ax = plt.subplots(figsize=(9, 5))
+
+    ax.barh(sorted_attacks.index, sorted_attacks.values)
+    ax.set_title("Attack Categories")
+    ax.set_xlabel("Number of Flows")
+
+    fig.tight_layout()
+    fig.savefig(CHART_DIR / "attack_categories.png", dpi=150)
+    plt.close(fig)
 
 def main():
     df = load_data()
@@ -125,6 +156,13 @@ def main():
     )
 
     print(median_by_label)
+
+
+    print_section(10, "GENERATING CHARTS")
+
+    save_charts(class_counts, attack_counts)
+
+    print("Charts generated successfully!")
 
 
 if __name__ == "__main__":
