@@ -95,6 +95,23 @@ def main():
     print_section(6, "CLASS PERCENTAGES")
     print(percentages.round(2))
 
+    print_section(7, "ATTACK CATEGORIES")
+
+    attack_counts = (
+        df.loc[df["label"] == 1, "attack_cat"]
+        .fillna("Unknown")
+        .value_counts()
+    )
+
+    print(attack_counts)
+
+
+    print_section(8, "TOP 10 NETWORK PROTOCOLS")
+
+    top_protocols = df["proto"].value_counts().head(10)
+
+    print(top_protocols)
+
 
 if __name__ == "__main__":
     main()
