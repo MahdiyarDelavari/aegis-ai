@@ -10,7 +10,9 @@ from pipeline.db import get_connection
 ROOT = Path(__file__).resolve().parent.parent
 
 CLEAN_PATH = ROOT / "data" / "processed" / "training_clean.csv"
-
+REJECTED_PATH = (
+    ROOT / "data" / "processed" / "rejected_rows.csv"
+)
 BATCH_SIZE = 1000
 SOURCE_SPLIT = "training"
 
@@ -134,12 +136,87 @@ def ingest_flows(conn):
     return total
 
 
+UPSERT_REJECTED_SQL = """
+INSERT INTO rejected_records (
+    source_split,
+    source_id,
+    reject_reason,
+    payload
+)
+VALUES (%s, %s, %s, %s)
+ON CONFLICT (source_split, source_id, reject_reason)
+DO UPDATE SET
+    payload = EXCLUDED.payload
+"""
+
+def ingest_rejected(conn):
+    if not REJECTED_PATH.is_file():
+        raise FileNotFoundError(REJECTED_PATH)
+
+    total = 0
+    seen_keys = set()
+
+    for chunk in pd.read_csv(
+        REJECTED_PATH,
+        chunksize=BATCH_SIZE
+    ):
+        params = []
+
+        for record in chunk.to_dict(orient="records"):
+            source_id = normalize(record["id"])
+
+            if (
+                isinstance(source_id, bool)
+                or not isinstance(source_id, (int, float))
+                or (
+                    isinstance(source_id, float)
+                    and not source_id.is_integer()
+                )
+            ):
+                raise ValueError("Invalid rejected record ID")
+
+            reason = normalize(record["reject_reason"])
+
+            if not isinstance(reason, str) or not reason:
+                raise ValueError("Missing rejection reason")
+
+            key = (int(source_id), reason)
+
+            if key in seen_keys:
+                raise ValueError(f"Duplicate rejected key: {key}")
+
+            seen_keys.add(key)
+
+            payload = {
+                key: normalize(value)
+                for key, value in record.items()
+                if key != "reject_reason"
+            }
+
+            params.append((
+                SOURCE_SPLIT,
+                int(source_id),
+                reason,
+                Jsonb(payload)
+            ))
+
+        with conn.cursor() as cursor:
+            cursor.executemany(
+                UPSERT_REJECTED_SQL,
+                params
+            )
+
+        total += len(params)
+
+    return total
 
 def main():
     with get_connection() as conn:
-        count = ingest_flows(conn)
+        flow_count = ingest_flows(conn)
+        rejected_count = ingest_rejected(conn)
 
-    print(f"Completed: {count:,} flows processed")
+    print("Valid flows processed:", flow_count)
+    print("Rejected rows processed:", rejected_count)
 
 
 if __name__ == "__main__":
