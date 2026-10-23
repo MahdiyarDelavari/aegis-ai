@@ -1,6 +1,6 @@
 import math
 from pathlib import Path
-
+import json
 import numpy as np
 import pandas as pd
 from psycopg.types.json import Jsonb
@@ -210,13 +210,144 @@ def ingest_rejected(conn):
 
     return total
 
-def main():
-    with get_connection() as conn:
-        flow_count = ingest_flows(conn)
-        rejected_count = ingest_rejected(conn)
 
-    print("Valid flows processed:", flow_count)
-    print("Rejected rows processed:", rejected_count)
+def start_run():
+    with get_connection() as conn:
+        result = conn.execute(
+            """
+            INSERT INTO pipeline_runs (
+                pipeline_name,
+                source_split,
+                status
+            )
+            VALUES (%s, %s, 'running')
+            RETURNING run_id
+            """,
+            ("network_ingestion", SOURCE_SPLIT)
+        ).fetchone()
+
+        return result[0]
+        
+
+def finish_run(
+    run_id,
+    status,
+    flow_count=0,
+    rejected_count=0,
+    error=None
+):
+    with get_connection() as conn:
+        conn.execute(
+            """
+            UPDATE pipeline_runs
+            SET
+                status = %s,
+                processed_flows = %s,
+                rejected_rows = %s,
+                error_message = %s,
+                finished_at = NOW()
+            WHERE run_id = %s
+            """,
+            (
+                status,
+                flow_count,
+                rejected_count,
+                error,
+                run_id
+            )
+        )
+
+
+
+def verify_counts(conn, flow_count, rejected_count):
+    report_path = (
+        ROOT / "reports" / "preprocessing_summary.json"
+    )
+
+    summary = json.loads(
+        report_path.read_text(encoding="utf-8")
+    )
+
+    expected_flows = int(summary["clean_rows"])
+    expected_rejected = int(summary["rejected_rows"])
+    source_rows = int(summary["source_rows"])
+
+    actual_flows = conn.execute(
+        """
+        SELECT COUNT(*)
+        FROM network_flows
+        WHERE source_split = %s
+        """,
+        (SOURCE_SPLIT,)
+    ).fetchone()[0]
+
+    actual_rejected = conn.execute(
+        """
+        SELECT COUNT(*)
+        FROM rejected_records
+        WHERE source_split = %s
+        """,
+        (SOURCE_SPLIT,)
+    ).fetchone()[0]
+
+    checks = [
+        flow_count == expected_flows,
+        rejected_count == expected_rejected,
+        actual_flows == expected_flows,
+        actual_rejected == expected_rejected,
+        source_rows == expected_flows + expected_rejected
+    ]
+
+    if not all(checks):
+        raise ValueError(
+            "Data reconciliation failed. "
+            f"Expected: {expected_flows} valid, "
+            f"{expected_rejected} rejected. "
+            f"Database: {actual_flows} valid, "
+            f"{actual_rejected} rejected."
+        )
+
+    print("Data reconciliation passed!")
+
+
+
+def main():
+    run_id = start_run()
+
+    flow_count = 0
+    rejected_count = 0
+
+    try:
+        with get_connection() as conn:
+            flow_count = ingest_flows(conn)
+            rejected_count = ingest_rejected(conn)
+
+            verify_counts(
+                conn,
+                flow_count,
+                rejected_count
+            )
+
+        finish_run(
+            run_id,
+            "succeeded",
+            flow_count,
+            rejected_count
+        )
+
+        print(f"Pipeline Run #{run_id}: SUCCESS")
+
+    except Exception as error:
+        finish_run(
+            run_id,
+            "failed",
+            flow_count,
+            rejected_count,
+            str(error)[:2000]
+        )
+
+        print(f"Pipeline Run #{run_id}: FAILED")
+        raise
 
 
 if __name__ == "__main__":
