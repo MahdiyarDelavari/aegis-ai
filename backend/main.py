@@ -61,3 +61,32 @@ def get_overview(conn=Depends(get_db)):
         attack_percentage=attack_percentage,
         unique_protocols=protocols
     )
+
+@app.get("/api/traffic/classes")
+def get_traffic_classes(conn=Depends(get_db)):
+
+    rows = conn.execute(
+        """
+        SELECT
+            label,
+            COUNT(*) AS flow_count,
+            SUM(COUNT(*)) OVER () AS total_count
+        FROM network_flows
+        WHERE source_split = %s
+        GROUP BY label
+        ORDER BY label
+        """,
+        (SOURCE_SPLIT,)
+    ).fetchall()
+
+    result = []
+
+    for label, count, total in rows:
+        result.append({
+            "label": label,
+            "name": "Normal" if label == 0 else "Attack",
+            "count": count,
+            "percentage": round(count / total * 100, 2)
+        })
+
+    return result
