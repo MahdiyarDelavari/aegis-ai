@@ -4,6 +4,8 @@ from fastapi import Depends
 from backend.dependencies import get_db
 
 from backend.schemas import OverviewResponse
+from fastapi import Query
+
 
 SOURCE_SPLIT = "training"
 
@@ -90,3 +92,65 @@ def get_traffic_classes(conn=Depends(get_db)):
         })
 
     return result
+
+
+@app.get("/api/attacks/top")
+def get_top_attacks(
+    limit: int = Query(10, ge=1, le=30),
+    conn=Depends(get_db)
+):
+    rows = conn.execute(
+        """
+        SELECT
+            attack_cat,
+            COUNT(*) AS flow_count,
+            ROUND(AVG(dur)::numeric, 3) AS avg_duration
+        FROM network_flows
+        WHERE source_split = %s
+          AND label = 1
+        GROUP BY attack_cat
+        ORDER BY flow_count DESC, attack_cat
+        LIMIT %s
+        """,
+        (SOURCE_SPLIT, limit)
+    ).fetchall()
+
+    return [
+        {
+            "attack_category": category or "Unknown",
+            "count": count,
+            "avg_duration": float(avg_duration)
+        }
+        for category, count, avg_duration in rows
+    ]
+
+@app.get("/api/protocols/top")
+def get_top_protocols(
+    limit: int = Query(10, ge=1, le=30),
+    conn=Depends(get_db)
+):
+    rows = conn.execute(
+        """
+        SELECT
+            proto,
+            COUNT(*) AS flow_count,
+            SUM(sbytes) AS total_source_bytes,
+            SUM(dbytes) AS total_destination_bytes
+        FROM network_flows
+        WHERE source_split = %s
+        GROUP BY proto
+        ORDER BY flow_count DESC, proto
+        LIMIT %s
+        """,
+        (SOURCE_SPLIT, limit)
+    ).fetchall()
+
+    return [
+        {
+            "protocol": proto,
+            "count": count,
+            "source_bytes": source_bytes,
+            "destination_bytes": destination_bytes
+        }
+        for proto, count, source_bytes, destination_bytes in rows
+    ]
