@@ -9,6 +9,8 @@ from fastapi import Query
 from backend.schemas import FlowPage
 from backend.schemas import PipelineRun
 
+from fastapi.middleware.cors import CORSMiddleware
+
 
 SOURCE_SPLIT = "training"
 
@@ -18,6 +20,16 @@ app = FastAPI(
     version="0.5.0"
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://127.0.0.1:5500",
+        "http://localhost:5500",
+    ],
+    allow_credentials=False,
+    allow_methods=["GET"],
+    allow_headers=["*"],
+)
 
 @app.get("/api/health")
 def health_check():
