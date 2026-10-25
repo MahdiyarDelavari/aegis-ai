@@ -6,6 +6,7 @@ from backend.dependencies import get_db
 from backend.schemas import OverviewResponse
 from fastapi import Query
 
+from backend.schemas import FlowPage
 
 SOURCE_SPLIT = "training"
 
@@ -154,3 +155,68 @@ def get_top_protocols(
         }
         for proto, count, source_bytes, destination_bytes in rows
     ]
+
+@app.get("/api/flows", response_model=FlowPage)
+def get_flows(
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    label: int | None = Query(None, ge=0, le=1),
+    conn=Depends(get_db)
+):
+    where_sql = "WHERE source_split = %s"
+    params = [SOURCE_SPLIT]
+
+    if label is not None:
+        where_sql += " AND label = %s"
+        params.append(label)
+
+    total = conn.execute(
+        f"""
+        SELECT COUNT(*)
+        FROM network_flows
+        {where_sql}
+        """,
+        tuple(params)
+    ).fetchone()[0]
+
+    offset = (page - 1) * size
+
+    rows = conn.execute(
+        f"""
+        SELECT
+            source_id,
+            label,
+            attack_cat,
+            proto,
+            dur,
+            sbytes,
+            dbytes
+        FROM network_flows
+        {where_sql}
+        ORDER BY source_id
+        LIMIT %s OFFSET %s
+        """,
+        (*params, size, offset)
+    ).fetchall()
+
+    columns = [
+        "source_id",
+        "label",
+        "attack_cat",
+        "proto",
+        "dur",
+        "sbytes",
+        "dbytes"
+    ]
+
+    items = [
+        dict(zip(columns, row))
+        for row in rows
+    ]
+
+    return {
+        "page": page,
+        "size": size,
+        "total": total,
+        "items": items
+    }
