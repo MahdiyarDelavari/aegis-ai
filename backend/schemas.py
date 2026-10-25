@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from datetime import datetime
 
 
 class OverviewResponse(BaseModel):
@@ -24,3 +25,13 @@ class FlowPage(BaseModel):
     size: int
     total: int
     items: list[NetworkFlow]
+
+
+
+class PipelineRun(BaseModel):
+    run_id: int
+    status: str
+    processed_flows: int
+    rejected_rows: int
+    started_at: datetime
+    finished_at: datetime | None

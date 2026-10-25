@@ -7,6 +7,8 @@ from backend.schemas import OverviewResponse
 from fastapi import Query
 
 from backend.schemas import FlowPage
+from backend.schemas import PipelineRun
+
 
 SOURCE_SPLIT = "training"
 
@@ -220,3 +222,40 @@ def get_flows(
         "total": total,
         "items": items
     }
+
+
+@app.get(
+    "/api/pipeline/runs",
+    response_model=list[PipelineRun]
+)
+def get_pipeline_runs(
+    limit: int = Query(20, ge=1, le=100),
+    conn=Depends(get_db)
+):
+    rows = conn.execute(
+        """
+        SELECT
+            run_id,
+            status,
+            processed_flows,
+            rejected_rows,
+            started_at,
+            finished_at
+        FROM pipeline_runs
+        ORDER BY run_id DESC
+        LIMIT %s
+        """,
+        (limit,)
+    ).fetchall()
+
+    return [
+        {
+            "run_id": row[0],
+            "status": row[1],
+            "processed_flows": row[2],
+            "rejected_rows": row[3],
+            "started_at": row[4],
+            "finished_at": row[5]
+        }
+        for row in rows
+    ]
