@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#07111f" />
+    <meta
+      name="description"
+      content="AEGIS AI network traffic intelligence dashboard"
+    />
+    <title>AEGIS AI | Traffic Intelligence</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="#overview" aria-label="AEGIS AI home">
+          <span class="brand-mark" aria-hidden="true">A</span>
+          <span>
+            <strong>AEGIS</strong>
+            <small>AI / INTELLIGENCE</small>
+          </span>
+        </a>
+
+        <nav class="primary-nav" aria-label="Primary navigation">
+          <a class="nav-link is-active" href="#overview" data-section="overview">
+            <span class="nav-icon">◈</span>
+            Overview
+          </a>
+          <a class="nav-link" href="#flows" data-section="flows">
+            <span class="nav-icon">⌁</span>
+            Network flows
+          </a>
+          <a class="nav-link" href="#pipeline" data-section="pipeline">
+            <span class="nav-icon">↻</span>
+            Pipeline runs
+          </a>
+        </nav>
+
+        <div class="sidebar-footer">
+          <div class="system-status">
+            <span class="status-dot" id="system-status-dot"></span>
+            <span>
+              <strong id="system-status-label">Checking API</strong>
+              <small>API connection</small>
+            </span>
+          </div>
+          <span class="version-label">v0.5.0 / TRAINING</span>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">NETWORK TRAFFIC INTELLIGENCE</p>
+            <h1 id="page-title">Overview</h1>
+          </div>
+          <div class="topbar-actions">
+            <span class="last-updated" id="last-updated">Awaiting data</span>
+            <button class="button button-ghost" id="refresh-button" type="button">
+              <span aria-hidden="true">↻</span>
+              Refresh
+            </button>
+          </div>
+        </header>
+
+        <div class="alert" id="app-alert" role="alert" hidden></div>
+
+        <section class="page-section is-visible" id="overview-section" data-page="overview">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">TRAINING DATASET / LIVE SNAPSHOT</p>
+              <h2>Detection posture</h2>
+            </div>
+            <span class="data-badge"><span class="status-dot"></span> DATA READY</span>
+          </div>
+
+          <div class="metric-grid" id="metric-grid">
+            <article class="metric-card metric-card-primary">
+              <div class="metric-card-header">
+                <span class="metric-label">Total flows</span>
+                <span class="metric-icon">⌁</span>
+              </div>
+              <strong class="metric-value" data-metric="total_flows">—</strong>
+              <span class="metric-caption">Observed network connections</span>
+            </article>
+            <article class="metric-card">
+              <div class="metric-card-header">
+                <span class="metric-label">Attack flows</span>
+                <span class="metric-icon metric-icon-alert">!</span>
+              </div>
+              <strong class="metric-value" data-metric="attack_flows">—</strong>
+              <span class="metric-caption"><span data-metric="attack_percentage">—</span>% of all traffic</span>
+            </article>
+            <article class="metric-card">
+              <div class="metric-card-header">
+                <span class="metric-label">Normal flows</span>
+                <span class="metric-icon metric-icon-safe">✓</span>
+              </div>
+              <strong class="metric-value" data-metric="normal_flows">—</strong>
+              <span class="metric-caption">Validated baseline traffic</span>
+            </article>
+            <article class="metric-card">
+              <div class="metric-card-header">
+                <span class="metric-label">Protocols</span>
+                <span class="metric-icon">◎</span>
+              </div>
+              <strong class="metric-value" data-metric="unique_protocols">—</strong>
+              <span class="metric-caption">Unique protocol signatures</span>
+            </article>
+          </div>
+
+          <div class="dashboard-grid">
+            <article class="panel class-panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">CLASS DISTRIBUTION</p>
+                  <h3>Traffic composition</h3>
+                </div>
+                <span class="panel-meta">LABEL / COUNT</span>
+              </div>
+              <div class="class-visual">
+                <div class="donut" id="class-donut" aria-label="Traffic class distribution">
+                  <div class="donut-center">
+                    <strong id="donut-total">—</strong>
+                    <span>flows</span>
+                  </div>
+                </div>
+                <div class="legend" id="class-legend"></div>
+              </div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">THREAT LANDSCAPE</p>
+                  <h3>Top attack categories</h3>
+                </div>
+                <a class="text-link" href="#flows" data-section-link="flows">Explore flows →</a>
+              </div>
+              <div class="bar-list" id="attack-list">
+                <div class="empty-state">Loading attack categories…</div>
+              </div>
+            </article>
+          </div>
+
+          <div class="dashboard-grid">
+            <article class="panel">
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">PROTOCOL TELEMETRY</p>
+                  <h3>Most active protocols</h3>
+                </div>
+                <span class="panel-meta">FLOW COUNT</span>
+              </div>
+              <div class="protocol-list" id="protocol-list">
+                <div class="empty-state">Loading protocols…</div>
+              </div>
+            </article>
+            <article class="panel note-panel">
+              <div class="signal-line"></div>
+              <p class="eyebrow">ANALYST NOTE</p>
+              <h3>Keep context close to the signal.</h3>
+              <p>
+                AEGIS combines ingestion quality, traffic composition, and
+                threat categories in one operational view.
+              </p>
+              <a class="button button-secondary" href="#pipeline" data-section-link="pipeline">
+                Review pipeline health
+              </a>
+            </article>
+          </div>
+        </section>
+
+        <section class="page-section" id="flows-section" data-page="flows" hidden>
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">TRAINING DATASET / FLOW EXPLORER</p>
+              <h2>Network flows</h2>
+            </div>
+            <div class="flow-controls">
+              <label class="select-label" for="flow-label-filter">Filter</label>
+              <select id="flow-label-filter">
+                <option value="">All traffic</option>
+                <option value="1">Attacks only</option>
+                <option value="0">Normal only</option>
+              </select>
+            </div>
+          </div>
+          <article class="panel table-panel">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Source ID</th>
+                    <th>Classification</th>
+                    <th>Category</th>
+                    <th>Protocol</th>
+                    <th>Duration</th>
+                    <th>Source bytes</th>
+                    <th>Destination bytes</th>
+                  </tr>
+                </thead>
+                <tbody id="flows-body">
+                  <tr><td class="table-message" colspan="7">Loading flows…</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="pagination">
+              <span id="flow-count">—</span>
+              <div class="pagination-actions">
+                <button class="button button-ghost" id="previous-page" type="button">← Previous</button>
+                <span id="page-number">Page 1</span>
+                <button class="button button-ghost" id="next-page" type="button">Next →</button>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section class="page-section" id="pipeline-section" data-page="pipeline" hidden>
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">OPERATIONS / INGESTION HISTORY</p>
+              <h2>Pipeline runs</h2>
+            </div>
+            <span class="data-badge"><span class="status-dot"></span> RECENT ACTIVITY</span>
+          </div>
+          <article class="panel table-panel">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Run ID</th>
+                    <th>Status</th>
+                    <th>Processed flows</th>
+                    <th>Rejected rows</th>
+                    <th>Started</th>
+                    <th>Finished</th>
+                  </tr>
+                </thead>
+                <tbody id="pipeline-body">
+                  <tr><td class="table-message" colspan="6">Loading pipeline runs…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+      </main>
+    </div>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
