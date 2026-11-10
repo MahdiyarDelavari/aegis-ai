@@ -10,6 +10,8 @@ from backend.schemas import FlowPage
 from backend.schemas import PipelineRun
 
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
 
 SOURCE_SPLIT = "training"
@@ -25,6 +27,8 @@ app.add_middleware(
     allow_origins=[
         "http://127.0.0.1:5500",
         "http://localhost:5500",
+        "http://127.0.0.1:5173",
+        "http://localhost:5173",
     ],
     allow_credentials=False,
     allow_methods=["GET"],
@@ -271,3 +275,7 @@ def get_pipeline_runs(
         }
         for row in rows
     ]
+
+
+frontend_dir = Path(__file__).resolve().parent.parent / "frontend"
+app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")

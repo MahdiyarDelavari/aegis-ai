@@ -32,6 +32,12 @@ class TestAnalyticsAPI(unittest.TestCase):
             "ok"
         )
 
+    def test_frontend_home(self):
+        response = self.client.get("/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("AEGIS AI", response.text)
+
     def test_database_health(self):
         self.db.execute.return_value.fetchone.return_value = (
             1,
